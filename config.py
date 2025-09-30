@@ -6,3 +6,4 @@ VERBOSE: str = "--verbose"
 
 # agent config
 MAX_FILE_LENGTH: int = 10000
+CODE_TIMEOUT: int = 30

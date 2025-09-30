@@ -1,6 +1,7 @@
 from functions.get_files_info import get_files_info
 from functions.get_file_content import get_file_content
 from functions.write_file import write_file
+from functions.run_python_file import run_python_file
 
 info_tests: list[tuple] = [
         ("calculator", "."),
@@ -22,27 +23,24 @@ write_tests: list[tuple] = [
     ("calculator", "/tmp/temp.txt", "this should not be allowed")
 ]
 
-def test_info() -> None:
-    for test in info_tests:
-        dir: str = f"'{test[1]}'" if test[1] != "." else "current"
-        print(f"Result for {dir} directory:")
-        print(get_files_info(*test))
-    
-def test_content() -> None:
-    for test in content_tests:
-        print(f"Result for file '{test[1]}':")
-        print(get_file_content(*test))
+execution_tests: list[tuple] = [
+    ("calculator", "main.py"),
+    ("calculator", "main.py", ["3 + 5"]),
+    ("calculator", "tests.py"),
+    ("calculator", "../main.py"),
+    ("calculator", "nonexistent.py")
+]
 
-def test_write() -> None:
-    for test in write_tests:
-        print(f"Result for file '{test[1]}':")
-        print(write_file(*test))
 
+def run_tests(cases: list[tuple], func) -> None:
+    for case in cases:
+        print(f"Result for '{case}':")
+        print(func(*case))
+        print("=" * 50)
+        
 
 def main():
-    # test_info()
-    # test_content()
-    test_write()
+    run_tests(execution_tests, run_python_file)
 
 if __name__ == "__main__":
     main()
