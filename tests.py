@@ -37,10 +37,10 @@ def run_tests(cases: list[tuple], func) -> None:
         print(f"Result for '{case}':")
         print(func(*case))
         print("=" * 50)
-        
+
 
 def main():
-    run_tests(execution_tests, run_python_file)
+    run_tests(write_tests, write_file)
 
 if __name__ == "__main__":
     main()

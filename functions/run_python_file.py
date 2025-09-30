@@ -1,6 +1,28 @@
 import os
 import subprocess
 from config import *
+from google.genai import types
+
+schema_run_python_file = types.FunctionDeclaration(
+    name="run_python_file",
+    description="Executes the specified Python file, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file that should be executed, relative to the working directory. Fails if it's not a '.py' file.",
+            ),
+            "args": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(
+                    type=types.Type.STRING
+                ),
+                description="Optional arguments provided at code execution. If you have no information about arguments, leave them empty.",
+            )
+        },
+    ),
+)
 
 def process_output(result: subprocess.CompletedProcess[bytes]) -> str:
     output: str = f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"

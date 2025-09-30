@@ -1,12 +1,19 @@
 import os
+from google.genai import types
 
-def generate_response(directory: str, content: list[str]) -> str:
-    try:
-        return "\n".join(
-                [f"\n- {f}: file_size={os.path.getsize(os.path.join(directory, f))} bytes, is_dir={os.path.isdir(os.path.join(directory, f))}" for f in content]
-            )
-    except Exception as e:
-        return f"Error: {str(e)}"
+schema_get_files_info = types.FunctionDeclaration(
+    name="get_files_info",
+    description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "directory": types.Schema(
+                type=types.Type.STRING,
+                description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+            ),
+        },
+    ),
+)
 
 def get_files_info(working_directory: str, directory: str=".") -> str:
     try:
@@ -18,7 +25,6 @@ def get_files_info(working_directory: str, directory: str=".") -> str:
             return f'Error: "{directory}" is not a directory'
         
         content: list[str] = os.listdir(rel_path)
-        return generate_response(rel_path, content)
+        return "\n".join([f"\n- {f}: file_size={os.path.getsize(os.path.join(rel_path, f))} bytes, is_dir={os.path.isdir(os.path.join(directory, f))}" for f in content])
     except Exception as e:
         return f"Error: {str(e)}"
-    
