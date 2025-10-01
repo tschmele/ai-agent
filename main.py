@@ -77,6 +77,7 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
     )
 
 def generate_content(messages: list[types.Content], verbose: bool=False) -> None:
+    exit = False
     for i in range(MAX_ITERATIONS):
         response: types.GenerateContentResponse = client.models.generate_content(
             model=MODEL, 
@@ -105,15 +106,15 @@ def generate_content(messages: list[types.Content], verbose: bool=False) -> None
                         print(f"-> {function_call_result.parts[0].function_response.response}")
                     messages.append(types.Content(role="user", parts=[function_call_result.parts[0]]))
 
-        if response.text is not None:
+        elif response.text is not None:
             print(f"Final Response:")
-            print(f"{response.text}\n")            
-            if verbose and response.usage_metadata is not None:
-                print_usage(response.usage_metadata)
-            break
+            print(f"{response.text}\n")
+            exit = True
 
         if verbose and response.usage_metadata is not None:
             print_usage(response.usage_metadata)
+        if exit:
+            break
 
 
 def main():
