@@ -23,11 +23,16 @@ available_functions = types.Tool(
     ]
 )
 
-translate_function = {
+str_to_function = {
     "get_files_info": get_files_info,
     "get_file_content": get_file_content,
     "write_file": write_file,
     "run_python_file": run_python_file
+}
+
+total_tokens: dict[str,int] = {
+    "prompt_tokens":0,
+    "response_tokens":0
 }
 
 def print_usage(usage_metadata: types.GenerateContentResponseUsageMetadata) -> None:
@@ -35,14 +40,10 @@ def print_usage(usage_metadata: types.GenerateContentResponseUsageMetadata) -> N
     response_tokens = usage_metadata.candidates_token_count
     print(f"Prompt tokens: {prompt_tokens}\nResponse tokens: {response_tokens}")
 
-def print_function_calls(function_calls: list[types.FunctionCall]) -> None:
-    for call in function_calls:
-        print(f"Calling function: {call.name}({call.args})")
-
 def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -> types.Content:
     function_name = function_call_part.name if function_call_part.name is not None else "None"
     args = function_call_part.args if function_call_part.args is not None else {}
-    if function_name not in translate_function:
+    if function_name not in str_to_function:
         return types.Content(
             role="tool",
             parts=[
@@ -54,7 +55,7 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
         )
     
     try:
-        function_result = translate_function[function_name](working_directory="./calculator", **args)
+        function_result = str_to_function[function_name](working_directory=WORKING_DIRECTORY, **args)
     except Exception as e:
         return types.Content(
             role="tool",
@@ -77,7 +78,7 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
     )
 
 def generate_content(messages: list[types.Content], verbose: bool=False) -> None:
-    close_loop = False
+    terminate_loop = False
     for i in range(MAX_ITERATIONS):
         try:
             response: types.GenerateContentResponse = client.models.generate_content(
@@ -91,6 +92,12 @@ def generate_content(messages: list[types.Content], verbose: bool=False) -> None
         except Exception as e:
             print(f"Error: generate_content failed: {str(e)}")
             exit(1)
+
+        if (response.usage_metadata is not None 
+                and response.usage_metadata.prompt_token_count is not None 
+                and response.usage_metadata.candidates_token_count is not None):
+            total_tokens["prompt_tokens"] += response.usage_metadata.prompt_token_count
+            total_tokens["response_tokens"] += response.usage_metadata.candidates_token_count
 
         if response.candidates is not None:
             messages += [c.content for c in response.candidates if c.content is not None]
@@ -114,11 +121,14 @@ def generate_content(messages: list[types.Content], verbose: bool=False) -> None
         elif response.text is not None:
             print(f"Final Response:")
             print(f"{response.text}\n")
-            close_loop = True
+            terminate_loop = True
+        
+        else:
+            print(f"Error: Response contains neither function_calls nor text.")
 
         if verbose and response.usage_metadata is not None:
             print_usage(response.usage_metadata)
-        if close_loop:
+        if terminate_loop:
             break
 
 
@@ -135,6 +145,10 @@ def main():
         print(f"User prompt: {user_prompt}\n")
 
     generate_content(messages, verbose)
+
+    print(f"Total tokens used:")
+    print(f"Prompt tokens: {total_tokens['prompt_tokens']}")
+    print(f"Response tokens: {total_tokens['response_tokens']}")
 
 if __name__ == "__main__":
     main()

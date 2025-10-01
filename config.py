@@ -8,6 +8,9 @@ VERBOSE: str = "--verbose"
 MAX_FILE_LENGTH: int = 10000
 CODE_TIMEOUT: int = 30
 MAX_ITERATIONS: int = 20
+
+WORKING_DIRECTORY: str = "./calculator"
+
 SYSTEM_PROMPT: str = """
 You are a helpful AI coding agent.
 
