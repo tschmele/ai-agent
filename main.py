@@ -42,12 +42,6 @@ def print_function_calls(function_calls: list[types.FunctionCall]) -> None:
 def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -> types.Content:
     function_name = function_call_part.name if function_call_part.name is not None else "None"
     args = function_call_part.args if function_call_part.args is not None else {}
-
-    if verbose:
-        print(f"Calling function: {function_name}({function_call_part.args})")
-    else:
-        print(f" - Calling function: {function_name}")
-
     if function_name not in translate_function:
         return types.Content(
             role="tool",
@@ -59,8 +53,19 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
             ],
         )
     
-    function_result = translate_function[function_name](working_directory="./calculator", **args)
-
+    try:
+        function_result = translate_function[function_name](working_directory="./calculator", **args)
+    except Exception as e:
+        return types.Content(
+            role="tool",
+            parts=[
+                types.Part.from_function_response(
+                    name=function_name,
+                    response={"error": f"Error: {e}"},
+                )
+            ],
+        )
+  
     return types.Content(
         role="tool",
         parts=[
@@ -71,26 +76,44 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
         ],
     )
 
-def output_conversation(user_prompt,  response: types.GenerateContentResponse) -> None:
-    if len(sys.argv) > 2 and sys.argv[2] == VERBOSE:
-        print(f"User prompt: {user_prompt}\n")
-    print(f"Gemini response: {response.text}")
-    if response.function_calls is not None:
-        if len(sys.argv) > 2 and sys.argv[2] == VERBOSE:
-            for call in response.function_calls:
-                function_call_result = call_function(call, verbose=True)
-        else:
-            for call in response.function_calls:
-                function_call_result = call_function(call)
+def generate_content(messages: list[types.Content], verbose: bool=False) -> None:
+    for i in range(MAX_ITERATIONS):
+        response: types.GenerateContentResponse = client.models.generate_content(
+            model=MODEL, 
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=[available_functions], 
+                system_instruction=SYSTEM_PROMPT
+            )
+        )
+        if response.candidates is not None:
+            messages += [c.content for c in response.candidates if c.content is not None]
         
-        if function_call_result.parts is not None and function_call_result.parts[0].function_response is not None and hasattr(function_call_result.parts[0].function_response, "response"):
-            if len(sys.argv) > 2 and sys.argv[2] == VERBOSE:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-        else:
-            raise Exception("Error: no response?? what happened?")
+        if response.function_calls is not None:
+            for call in response.function_calls:
+                if verbose:
+                    print(f"Calling function: {call.name}({call.args})")
+                else:
+                    print(f" - Calling function: {call.name}")
+                
+                function_call_result: types.Content = call_function(call, verbose)
 
-    if len(sys.argv) > 2 and sys.argv[2] == VERBOSE and response.usage_metadata is not None:
-        print_usage(response.usage_metadata)
+                if function_call_result.parts is not None and function_call_result.parts[0].function_response is not None:
+                    if not hasattr(function_call_result.parts[0].function_response, "response"):
+                        raise Exception("Error: We lost the response somewhere.")
+                    if verbose:
+                        print(f"-> {function_call_result.parts[0].function_response.response}")
+                    messages.append(types.Content(role="user", parts=[function_call_result.parts[0]]))
+
+        if response.text is not None:
+            print(f"Final Response:")
+            print(f"{response.text}\n")            
+            if verbose and response.usage_metadata is not None:
+                print_usage(response.usage_metadata)
+            break
+
+        if verbose and response.usage_metadata is not None:
+            print_usage(response.usage_metadata)
 
 
 def main():
@@ -98,21 +121,14 @@ def main():
         print("No prompt provided")
         exit(1)
     user_prompt = sys.argv[1]
+    verbose = True if len(sys.argv) > 2 and VERBOSE in sys.argv[2:]  else False
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)])
     ]
-    
-    response = client.models.generate_content(
-        model=MODEL, 
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], 
-            system_instruction=SYSTEM_PROMPT
-        )
-    )
+    if verbose:
+        print(f"User prompt: {user_prompt}\n")
 
-    output_conversation(user_prompt, response)
-
+    generate_content(messages, verbose)
 
 if __name__ == "__main__":
     main()
