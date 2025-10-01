@@ -77,16 +77,21 @@ def call_function(function_call_part: types.FunctionCall, verbose: bool=False) -
     )
 
 def generate_content(messages: list[types.Content], verbose: bool=False) -> None:
-    exit = False
+    close_loop = False
     for i in range(MAX_ITERATIONS):
-        response: types.GenerateContentResponse = client.models.generate_content(
-            model=MODEL, 
-            contents=messages,
-            config=types.GenerateContentConfig(
-                tools=[available_functions], 
-                system_instruction=SYSTEM_PROMPT
+        try:
+            response: types.GenerateContentResponse = client.models.generate_content(
+                model=MODEL, 
+                contents=messages,
+                config=types.GenerateContentConfig(
+                    tools=[available_functions], 
+                    system_instruction=SYSTEM_PROMPT
+                )
             )
-        )
+        except Exception as e:
+            print(f"Error: generate_content failed: {str(e)}")
+            exit(1)
+
         if response.candidates is not None:
             messages += [c.content for c in response.candidates if c.content is not None]
         
@@ -109,11 +114,11 @@ def generate_content(messages: list[types.Content], verbose: bool=False) -> None
         elif response.text is not None:
             print(f"Final Response:")
             print(f"{response.text}\n")
-            exit = True
+            close_loop = True
 
         if verbose and response.usage_metadata is not None:
             print_usage(response.usage_metadata)
-        if exit:
+        if close_loop:
             break
 
 
