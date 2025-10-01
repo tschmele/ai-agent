@@ -19,3 +19,5 @@ uv run main.py "prompt" --verbose
 - [ ] increase error tolerance of main loop
 
 - [ ] refactor code to increase readability
+
+- [ ] enable interactive conversations
